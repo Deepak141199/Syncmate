@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import ContactViewSet,RingtoneViewSet,WallpaperProposalViewSet,ContactRingtoneUpdate,ContactWallpaperProposalUpdate,FilterWallpaperProposals,ContactsByCurrentUser,WallpaperProposalsByContact,WallpaperProposalDetail,OwnContactDetailView
+from .views import ContactViewSet,RingtoneViewSet,WallpaperProposalViewSet,ContactRingtoneUpdate,ContactWallpaperProposalUpdate,FilterWallpaperProposals,ContactsByCurrentUser,WallpaperProposalsByContact,WallpaperProposalDetail,OwnContactDetailView,WallpaperGeneration
 from . import views
 
 router = DefaultRouter()
@@ -20,4 +20,5 @@ urlpatterns = [
     path('wallpaper-proposals/<int:pk>/upload-wallpaper/', WallpaperProposalViewSet.as_view(({'patch':'upload_proposed_wallpaper'})), name='wallpaper-proposal-update'),
     path('wallpaper-proposals/my-proposals/', FilterWallpaperProposals.as_view(), name='filter-wallpaper-proposals'),
     path('own-contact/', OwnContactDetailView.as_view(), name='own-contact-detail'),
+    path('generate-wallpaper/', WallpaperGeneration.as_view(), name='generate-wallpaper'),
 ]
