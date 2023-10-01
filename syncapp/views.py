@@ -2,7 +2,7 @@ from django.shortcuts import render
 from rest_framework import viewsets
 from django.views.decorators.csrf import csrf_exempt
 from .models import Contact, Ringtone, WallpaperProposal
-from .serializers import ContactSerializer, RingtoneSerializer, WallpaperProposalSerializer
+from .serializers import ContactSerializer, RingtoneSerializer, WallpaperProposalSerializer,ContactWithoutUserSerializer
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -254,34 +254,33 @@ class WallpaperProposalDetail(APIView):
 
     @action(detail=True, methods=['POST'])
     def post(self, request, contact_id, wallpaper_id):
+      try:
+        # Retrieve the specific wallpaper proposal by ID
+        wallpaper_proposal = WallpaperProposal.objects.get(pk=wallpaper_id, contact_id=contact_id)
+      except WallpaperProposal.DoesNotExist:
+        return Response({'message': 'Wallpaper proposal not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+      action = request.data.get('action')  # Assuming you send 'action' in the request data.
+      if action == 'accept':
+        # Update the contact's image with the proposed wallpaper
+        contact_id = wallpaper_proposal.contact_id  # Retrieve the contact ID from the WallpaperProposal
         try:
-            # Retrieve the specific wallpaper proposal by ID
-            wallpaper_proposal = WallpaperProposal.objects.get(pk=wallpaper_id, contact_id=contact_id)
-        except WallpaperProposal.DoesNotExist:
-            return Response({'message': 'Wallpaper proposal not found.'}, status=status.HTTP_404_NOT_FOUND)
+            contact = Contact.objects.get(pk=contact_id)
+            contact.contact_image = wallpaper_proposal.proposed_wallpaper
+            contact.save()
+        except Contact.DoesNotExist:
+            return Response({'message': 'Contact not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-        action = request.data.get('action')  # Assuming you send 'action' in the request data.
+        # Update the proposal message in WallpaperProposal to indicate acceptance
+        wallpaper_proposal.is_accepted = True
+        wallpaper_proposal.save()
 
-        if action == 'accept':
-            # Update the contact's image with the proposed wallpaper
-            proposer_id = wallpaper_proposal.proposer_id
-            try:
-                contact = Contact.objects.get(pk=proposer_id)
-                contact.contact_image = wallpaper_proposal.proposed_wallpaper
-                contact.save()
-            except Contact.DoesNotExist:
-                return Response({'message': 'Contact not found.'}, status=status.HTTP_404_NOT_FOUND)
-
-            # Update the proposal message in WallpaperProposal to indicate acceptance
-            wallpaper_proposal.is_accepted = True
-            wallpaper_proposal.save()
-
-            return Response({'message': 'Wallpaper proposal accepted.'}, status=status.HTTP_200_OK)
-        elif action == 'reject':
+        return Response({'message': 'Wallpaper proposal accepted.'}, status=status.HTTP_200_OK)
+      elif action == 'reject':
             # Delete the wallpaper proposal
             wallpaper_proposal.delete()
             return Response({'message': 'Wallpaper proposal rejected and deleted.'}, status=status.HTTP_200_OK)
-        else:
+      else:
             return Response({'message': 'Invalid action.'}, status=status.HTTP_400_BAD_REQUEST)
         
 
@@ -289,3 +288,17 @@ class WallpaperProposalDetail(APIView):
 
 
 ###################################################################################################################
+
+class OwnContactDetailView(generics.RetrieveAPIView):
+    queryset = Contact.objects.all()
+    serializer_class = ContactWithoutUserSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        # Get the logged-in user
+        user = self.request.user
+
+        # Filter the Contact objects based on the user's username
+        contact = Contact.objects.filter(name=user.username).first()
+
+        return contact

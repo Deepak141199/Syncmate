@@ -13,8 +13,13 @@ class RingtoneSerializer(serializers.ModelSerializer):
 
 class WallpaperProposalSerializer(serializers.ModelSerializer):
     contact_name = serializers.ReadOnlyField(source='contact.name')
-    proposer_contact_id = serializers.PrimaryKeyRelatedField(queryset=Contact.objects.all(), source='proposer',write_only=True)
+    #proposer_contact_id = serializers.PrimaryKeyRelatedField(queryset=Contact.objects.all(), source='proposer')
     proposer_name = serializers.ReadOnlyField(source='proposer.username')
     class Meta:
         model = WallpaperProposal
         fields = '__all__'
+
+class ContactWithoutUserSerializer(ContactSerializer):
+    class Meta:
+        model = Contact
+        fields = ['contact_image']

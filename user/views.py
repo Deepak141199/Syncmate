@@ -3,6 +3,8 @@ from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from .serializers import UserSerializer
+from django.db import models
+from django.contrib.auth.models import AbstractUser
 
 class CreateUserView(generics.CreateAPIView):
     queryset = User.objects.all()
