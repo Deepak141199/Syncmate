@@ -1,4 +1,9 @@
 from django.shortcuts import render
+import openai,os
+import requests
+from PIL import Image
+from io import BytesIO
+from dotenv import load_dotenv
 from rest_framework import viewsets
 from django.views.decorators.csrf import csrf_exempt
 from .models import Contact, Ringtone, WallpaperProposal
@@ -12,8 +17,38 @@ from .permissions import mypermission
 from rest_framework import generics
 from django.shortcuts import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
+load_dotenv()
+
+api_key=os.getenv("OPENAI_KEY",None)
+openai.api_key=api_key
 
 # Create your views here.
+class WallpaperGeneration(APIView):
+    def post(self, request):
+        # Get user input from the request
+        user_input = request.data.get('input_text')
+
+        # Use OpenAI to generate an image based on user input
+        response = openai.Completion.create(
+            engine="davinci",
+            prompt=user_input,
+            max_tokens=50,  # Adjust max_tokens as needed
+            n=1,  # Number of completions
+            stop=None,  # Set stop words as needed
+            temperature=0.7,  # Adjust temperature as needed
+        )
+
+        # Extract the generated image URL from the OpenAI response
+        generated_image_url = response.choices[0].text.strip()
+
+          # Serialize and return the generated image URL
+        return Response({'generated_image_url': generated_image_url}, status=status.HTTP_200_OK)
+
+
+
+########################################################################################################################
+
+
 
 #@csrf_exempt
 class ContactViewSet(viewsets.ModelViewSet):
@@ -187,21 +222,24 @@ class WallpaperProposalViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['PATCH'])
     def upload_proposed_wallpaper(self, request, pk):
-      try:
-        proposed_wallpaper = WallpaperProposal.objects.get(pk=pk)
-      except WallpaperProposal.DoesNotExist:
-        return Response({'error': 'Proposed wallpaper not found'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            proposed_wallpaper = WallpaperProposal.objects.get(pk=pk)
+        except WallpaperProposal.DoesNotExist:
+            return Response({'error': 'Proposed wallpaper not found'}, status=status.HTTP_404_NOT_FOUND)
 
-    # Check if the user has permission to update this proposed wallpaper (e.g., if it's their own proposal)
-      if proposed_wallpaper.proposer != request.user:
-        return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+        # Check if the user has permission to update this proposed wallpaper
+        if proposed_wallpaper.proposer != request.user:
+            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
 
-    # Update the proposed wallpaper's image
-      proposed_wallpaper.proposed_wallpaper = request.data.get('proposed_wallpaper')
-      proposed_wallpaper.save()
+        # Get the generated image URL from the request
+        generated_image_url = request.data.get('generated_image_url')
 
-      serializer = WallpaperProposalSerializer(proposed_wallpaper)
-      return Response(serializer.data, status=status.HTTP_200_OK)
+        # Associate the generated image URL with the proposed wallpaper
+        proposed_wallpaper.proposed_wallpaper = generated_image_url
+        proposed_wallpaper.save()
+
+        serializer = WallpaperProposalSerializer(proposed_wallpaper)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 
